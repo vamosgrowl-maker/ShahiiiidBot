@@ -33,10 +33,15 @@ processed_mids = set()
 # ==========================================
 # 🎨 دالة توليد ورفع صورة التفاصيل (التحديث الجديد)
 # ==========================================
-FONT_URL = "https://raw.githubusercontent.com/google/fonts/main/ofl/cairo/Cairo-Bold.ttf"
-FONT_PATH = "/tmp/Cairo-Bold.ttf"
+# ==========================================
+# 🎨 دالة توليد ورفع صورة التفاصيل
+# ==========================================
+# رابط مباشر ومستقر 100% لخط Tajawal من مستودعات جوجل الرسمية
+FONT_URL = "https://raw.githubusercontent.com/google/fonts/main/ofl/tajawal/Tajawal-Bold.ttf"
+FONT_PATH = "/tmp/Tajawal-Bold.ttf" # تغيير الاسم ليقوم Vercel بتجاهل الملف التالف القديم
 
 def get_font(size):
+    # 1. تحميل الخط إذا لم يكن موجوداً
     if not os.path.exists(FONT_PATH):
         try:
             r = requests.get(FONT_URL)
@@ -44,26 +49,16 @@ def get_font(size):
                 f.write(r.content)
         except:
             return ImageFont.load_default()
-    return ImageFont.truetype(FONT_PATH, size)
-
-def generate_and_upload_movie_card(title, type_val, cats, story, poster_url, total_episodes):
-    # 1. إنشاء الخلفية
-    bg = Image.new('RGB', (800, 500), color=(15, 23, 42)) # لون سينمائي
-    draw = ImageDraw.Draw(bg)
-    font_title = get_font(28)
-    font_text = get_font(22)
-
-    # 2. وضع البوستر على اليمين
+            
+    # 2. محاولة قراءة الخط (مع حماية ضد الملفات التالفة)
     try:
-        p_res = requests.get(poster_url)
-        poster = Image.open(BytesIO(p_res.content)).convert("RGB")
-        poster = poster.resize((240, 360))
-        bg.paste(poster, (520, 70))
-    except: pass
-
-    # 3. معالجة اللغة العربية
-    def fix_ar(text):
-        return get_display(arabic_reshaper.reshape(str(text)))
+        return ImageFont.truetype(FONT_PATH, size)
+    except Exception as e:
+        print("Font Error:", e)
+        # إذا كان الملف تالفاً (مثل صفحة 404)، نحذفه فوراً لكي يحمله بشكل صحيح في المرة القادمة
+        if os.path.exists(FONT_PATH):
+            os.remove(FONT_PATH)
+        return ImageFont.load_default()
 
     # 4. كتابة النصوص على اليسار (محاذاة لليمين)
     draw.text((490, 70), fix_ar(f"الإسم : {title}"), font=font_title, fill="white", anchor="rt")
