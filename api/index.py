@@ -4,6 +4,7 @@ import urllib.parse
 import re
 import cloudscraper
 import textwrap
+import traceback
 from bs4 import BeautifulSoup
 from flask import Flask, request
 from io import BytesIO
@@ -24,24 +25,19 @@ FB_API_URL = "https://graph.facebook.com/v25.0/me/messages"
 
 # 🔑 مفاتيح API
 JSONBIN_API_KEY = "$2a$10$8JmDvmx5Ik8.LJu5C7rmmOIDxWpjAgDBZRIaHBCL7eZ9KMk3jwV6y"
-JSONBIN_BIN_ID = "69c1725dc3097a1dd55122d5"
+JSONBIN_BIN_ID = "69c11690aa77b81da90e7786"
 JSONBIN_URL = f"https://api.jsonbin.io/v3/b/{JSONBIN_BIN_ID}"
 
 IMGBB_API_KEY = "128aec5bcb2bf6b1bdf2c0738980f0c7"
 processed_mids = set()
 
 # ==========================================
-# 🎨 دالة توليد ورفع صورة التفاصيل (التحديث الجديد)
-# ==========================================
-# ==========================================
 # 🎨 دالة توليد ورفع صورة التفاصيل
 # ==========================================
-# رابط مباشر ومستقر 100% لخط Tajawal من مستودعات جوجل الرسمية
 FONT_URL = "https://raw.githubusercontent.com/google/fonts/main/ofl/tajawal/Tajawal-Bold.ttf"
-FONT_PATH = "/tmp/Tajawal-Bold.ttf" # تغيير الاسم ليقوم Vercel بتجاهل الملف التالف القديم
+FONT_PATH = "/tmp/Tajawal-Bold.ttf"
 
 def get_font(size):
-    # 1. تحميل الخط إذا لم يكن موجوداً
     if not os.path.exists(FONT_PATH):
         try:
             r = requests.get(FONT_URL)
@@ -50,32 +46,51 @@ def get_font(size):
         except:
             return ImageFont.load_default()
             
-    # 2. محاولة قراءة الخط (مع حماية ضد الملفات التالفة)
     try:
         return ImageFont.truetype(FONT_PATH, size)
     except Exception as e:
         print("Font Error:", e)
-        # إذا كان الملف تالفاً (مثل صفحة 404)، نحذفه فوراً لكي يحمله بشكل صحيح في المرة القادمة
         if os.path.exists(FONT_PATH):
             os.remove(FONT_PATH)
         return ImageFont.load_default()
 
-    # 4. كتابة النصوص على اليسار (محاذاة لليمين)
+def generate_and_upload_movie_card(title, type_val, cats, story, poster_url, total_episodes):
+    # 1. إنشاء الخلفية
+    bg = Image.new('RGB', (800, 500), color=(15, 23, 42)) 
+    draw = ImageDraw.Draw(bg)
+    font_title = get_font(28)
+    font_text = get_font(22)
+
+    # 2. وضع البوستر على اليمين
+    try:
+        if poster_url:
+            p_res = requests.get(poster_url)
+            poster = Image.open(BytesIO(p_res.content)).convert("RGB")
+            poster = poster.resize((240, 360))
+            bg.paste(poster, (520, 70))
+    except: pass
+
+    # 3. معالجة اللغة العربية
+    def fix_ar(text):
+        return get_display(arabic_reshaper.reshape(str(text)))
+
+    # 4. كتابة النصوص
     draw.text((490, 70), fix_ar(f"الإسم : {title}"), font=font_title, fill="white", anchor="rt")
     draw.text((490, 120), fix_ar(f"النوع : {type_val}"), font=font_title, fill="#38bdf8", anchor="rt")
     draw.text((490, 170), fix_ar(f"التصنيفات : {cats}"), font=font_title, fill="#10b981", anchor="rt")
     draw.text((490, 220), fix_ar(f"عدد الفصول : {total_episodes}"), font=font_title, fill="#fbbf24", anchor="rt")
     draw.text((490, 270), fix_ar("القصة :"), font=font_title, fill="#f472b6", anchor="rt")
 
-    # تقسيم القصة لأسطر
-    reshaped_story = arabic_reshaper.reshape(story)
-    lines = textwrap.wrap(reshaped_story, width=40)
-    y_text = 320
-    for line in lines[:4]: # نأخذ 4 أسطر كحد أقصى لكي لا تخرج عن الصورة
-        draw.text((490, y_text), get_display(line), font=font_text, fill="#cbd5e1", anchor="rt")
-        y_text += 35
+    # تقسيم القصة
+    if story:
+        reshaped_story = arabic_reshaper.reshape(story)
+        lines = textwrap.wrap(reshaped_story, width=40)
+        y_text = 320
+        for line in lines[:4]: 
+            draw.text((490, y_text), get_display(line), font=font_text, fill="#cbd5e1", anchor="rt")
+            y_text += 35
 
-    # 5. حفظ الصورة ورفعها لـ ImgBB
+    # 5. الرفع لـ ImgBB
     img_io = BytesIO()
     bg.save(img_io, 'JPEG', quality=90)
     img_io.seek(0)
@@ -146,15 +161,7 @@ def send_fb_photo(rid, txt, photo_url):
     if txt: send_fb_message(rid, txt)
 
 def send_welcome(sid):
-    msg = "👋 مرحبا بك في بوت Shahiiiid Bot .\n"
-    msg += "🤖 يوفر لكم البوت كمية كبيرة من الأفلام والمسلسلات بمجرد كتابة اسمه.\n"
-    msg += "👨‍💻 تابع حساب المطور من هنا :\n\n"
-    msg += "https://www.facebook.com/M.oulay.I.smail.B.drk\n\n"
-    msg += "🔗 رابط صفحة Maghrib-Ai لبرمجة وتطوير البوتات :\n\n"
-    msg += "https://www.facebook.com/profile.php?id=61579427890346\n\n"
-    msg += "🔗 رابط موقعنا الرسمي :\n\n"
-    msg += "https://maghrib-ai-official-company.vercel.app/\n\n"
-    msg += "🖊️ أرسل إسم الفيلم / المسلسل للبحث :"
+    msg = "👋 مرحبا بك في بوت Shahiiiid Bot .\n🤖 يوفر لكم البوت كمية كبيرة من الأفلام والمسلسلات بمجرد كتابة اسمه.\n👨‍💻 تابع حساب المطور من هنا :\n\nhttps://www.facebook.com/M.oulay.I.smail.B.drk\n\n🔗 رابط صفحة Maghrib-Ai لبرمجة وتطوير البوتات :\n\nhttps://www.facebook.com/profile.php?id=61579427890346\n\n🔗 رابط موقعنا الرسمي :\n\nhttps://maghrib-ai-official-company.vercel.app/\n\n🖊️ أرسل إسم الفيلم / المسلسل للبحث :"
     send_fb_message(sid, msg)
 
 # ==========================================
@@ -180,6 +187,7 @@ def webhook():
                 sid = str(event['sender']['id'])
                 message_data = event.get('message', {})
                 mid = message_data.get('mid')
+                
                 if not message_data.get('text') or message_data.get('is_echo') or (mid and mid in processed_mids): 
                     continue
                 if mid: processed_mids.add(mid)
@@ -235,7 +243,7 @@ def webhook():
                         results = user_state.get("search_results", [])
                         if 0 <= index < len(results):
                             selected_link = results[index].get("link")
-                            poster_url = results[index].get("image", "") # جلب صورة البوستر من البحث
+                            poster_url = results[index].get("image", "") 
                             
                             send_fb_message(sid, "⏳ جاري تصميم بطاقة التفاصيل الفنية، يرجى الانتظار قليلاً...")
                             
@@ -261,7 +269,6 @@ def webhook():
                                     if uploaded_img_url:
                                         send_fb_photo(sid, "🖊️ أدخل رقم 1️⃣ لرؤية الفصول المتوفرة.", uploaded_img_url)
                                     else:
-                                        # في حال فشل رفع الصورة، نرسل التفاصيل كنص عادي كما كان في السابق
                                         fallback_msg = f"📧 الإسم : {details.get('title', '')}\n👾 النوع : {details.get('type', 'غير معروف')}\n🧱 التصنيفات : {cats_str}\n📄 القصة :\n================\n▫️ {details.get('story', '')}\n================\n🎫 عدد الفصول : {details.get('totalEpisodes', '1')}\n\n🖊️ أدخل رقم 1️⃣ لرؤية الفصول المتوفرة."
                                         send_fb_message(sid, fallback_msg)
                                     
@@ -271,7 +278,6 @@ def webhook():
                                 else:
                                     send_fb_message(sid, "❌ تعذر جلب تفاصيل هذا العمل.")
                             except Exception as e:
-                                import traceback
                                 error_msg = traceback.format_exc()
                                 send_fb_message(sid, f"❌ حدث خطأ تقني في الكود:\n{str(e)}\n\nتفاصيل للمطور:\n{error_msg[:600]}")
                         else:
