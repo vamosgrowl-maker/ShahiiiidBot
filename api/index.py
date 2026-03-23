@@ -276,7 +276,9 @@ def webhook():
                                 else:
                                     send_fb_message(sid, "❌ تعذر جلب تفاصيل هذا العمل.")
                             except Exception as e:
-                                send_fb_message(sid, "❌ حدث خطأ أثناء جلب التفاصيل.")
+                                import traceback
+                                error_msg = traceback.format_exc()
+                                send_fb_message(sid, f"❌ حدث خطأ تقني في الكود:\n{str(e)}\n\nتفاصيل للمطور:\n{error_msg[:600]}")
                         else:
                             send_fb_message(sid, "❌ الرقم غير صحيح، يرجى اختيار رقم من القائمة أعلاه.")
                     else:
