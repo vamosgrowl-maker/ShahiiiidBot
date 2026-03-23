@@ -33,7 +33,7 @@ processed_mids = set()
 # ==========================================
 # 🎨 دالة توليد ورفع صورة التفاصيل (التحديث الجديد)
 # ==========================================
-FONT_URL = "https://github.com/googlefonts/cairo/raw/master/fonts/ttf/Cairo-Bold.ttf"
+FONT_URL = "https://raw.githubusercontent.com/google/fonts/main/ofl/cairo/Cairo-Bold.ttf"
 FONT_PATH = "/tmp/Cairo-Bold.ttf"
 
 def get_font(size):
